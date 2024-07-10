@@ -4391,10 +4391,15 @@ void RGWPostObj::execute(optional_yield y)
   char supplied_md5[CEPH_CRYPTO_MD5_DIGESTSIZE * 2 + 1];
 
   /* Read in the data from the POST form. */
+
+  ldpp_dout(this, 0) << "RGWPostObj_execute: get_params" << dendl;
+
   op_ret = get_params(y);
   if (op_ret < 0) {
     return;
   }
+
+  ldpp_dout(this, 0) << "RGWPostObj_execute: verify_params" << dendl;
 
   op_ret = verify_params();
   if (op_ret < 0) {
@@ -4403,6 +4408,8 @@ void RGWPostObj::execute(optional_yield y)
 
   // add server-side encryption headers
   rgw_iam_add_crypt_attrs(s->env, s->info.crypt_attribute_map);
+  
+  ldpp_dout(this, 0) << "RGWPostObj_execute: iam policy" << dendl;
 
   if (s->iam_policy || ! s->iam_user_policies.empty() || !s->session_policies.empty()) {
     auto identity_policy_res = eval_identity_or_session_policies(this, s->iam_user_policies, s->env,
@@ -4466,6 +4473,8 @@ void RGWPostObj::execute(optional_yield y)
     return;
   }
 
+  ldpp_dout(this, 0) << "RGWPostObj_execute: notifications" << dendl;
+
   // make reservation for notification if needed
   std::unique_ptr<rgw::sal::Notification> res
     = driver->get_notification(s->object.get(), s->src_object.get(), s, rgw::notify::ObjectCreatedPost, y);
@@ -4473,6 +4482,8 @@ void RGWPostObj::execute(optional_yield y)
   if (op_ret < 0) {
     return;
   }
+
+  ldpp_dout(this, 0) << "RGWPostObj_execute: data field iteration" << dendl;
 
   /* Start iteration over data fields. It's necessary as Swift's FormPost
    * is capable to handle multiple files in single form. */
@@ -4483,6 +4494,8 @@ void RGWPostObj::execute(optional_yield y)
     // Allow use of MD5 digest in FIPS mode for non-cryptographic purposes
     hash.SetFlags(EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
     ceph::buffer::list bl, aclbl;
+
+    ldpp_dout(this, 0) << "RGWPostObj_execute: check quota" << dendl;
 
     op_ret = s->bucket->check_quota(this, quota, s->content_length, y);
     if (op_ret < 0) {
@@ -4504,11 +4517,15 @@ void RGWPostObj::execute(optional_yield y)
       ldpp_dout(this, 15) << "supplied_md5=" << supplied_md5 << dendl;
     }
 
+    ldpp_dout(this, 0) << "RGWPostObj_execute: bucket versioning check" << dendl;
+
     std::unique_ptr<rgw::sal::Object> obj =
 		     s->bucket->get_object(rgw_obj_key(get_current_filename()));
     if (s->bucket->versioning_enabled()) {
       obj->gen_rand_obj_instance_name();
     }
+
+    ldpp_dout(this, 0) << "RGWPostObj_execute: atomic writer" << dendl;
 
     std::unique_ptr<rgw::sal::Writer> processor;
     processor = driver->get_atomic_writer(this, s->yield, obj.get(),
@@ -4518,6 +4535,8 @@ void RGWPostObj::execute(optional_yield y)
     if (op_ret < 0) {
       return;
     }
+
+    ldpp_dout(this, 0) << "RGWPostObj_execute: data processor" << dendl;
 
     /* No filters by default. */
     rgw::sal::DataProcessor *filter = processor.get();
@@ -4542,6 +4561,8 @@ void RGWPostObj::execute(optional_yield y)
         }
       }
     }
+
+    ldpp_dout(this, 0) << "RGWPostObj_execute: get_data again" << dendl;
 
     bool again;
     do {
@@ -4571,6 +4592,7 @@ void RGWPostObj::execute(optional_yield y)
       }
     } while (again);
 
+    ldpp_dout(this, 0) << "RGWPostObj_execute: flush" << dendl;
     // flush
     op_ret = filter->process({}, ofs);
     if (op_ret < 0) {
@@ -4601,11 +4623,17 @@ void RGWPostObj::execute(optional_yield y)
       return;
     }
 
+    ldpp_dout(this, 0) << "RGWPostObj_execute: append etag" << dendl;
+
     bl.append(etag.c_str(), etag.size());
     emplace_attr(RGW_ATTR_ETAG, std::move(bl));
 
+    ldpp_dout(this, 0) << "RGWPostObj_execute: policy encode" << dendl;
+
     policy.encode(aclbl);
     emplace_attr(RGW_ATTR_ACL, std::move(aclbl));
+
+    ldpp_dout(this, 0) << "RGWPostObj_execute: get current content type" << dendl;
 
     const std::string content_type = get_current_content_type();
     if (! content_type.empty()) {
@@ -4613,6 +4641,8 @@ void RGWPostObj::execute(optional_yield y)
       ct_bl.append(content_type.c_str(), content_type.size() + 1);
       emplace_attr(RGW_ATTR_CONTENT_TYPE, std::move(ct_bl));
     }
+
+    ldpp_dout(this, 0) << "RGWPostObj_execute: compression" << dendl;
 
     if (compressor && compressor->is_compressed()) {
       ceph::bufferlist tmp;
@@ -4625,6 +4655,8 @@ void RGWPostObj::execute(optional_yield y)
       emplace_attr(RGW_ATTR_COMPRESSION, std::move(tmp));
     }
 
+    ldpp_dout(this, 0) << "RGWPostObj_execute: processor complete" << dendl;
+
     op_ret = processor->complete(s->obj_size, etag, nullptr, real_time(), attrs,
                                 (delete_at ? *delete_at : real_time()),
                                 nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -4634,12 +4666,16 @@ void RGWPostObj::execute(optional_yield y)
     }
   } while (is_next_file_to_upload());
 
+  ldpp_dout(this, 0) << "RGWPostObj_execute: iteration finished, send to notification manager" << dendl;
+
   // send request to notification manager
   int ret = res->publish_commit(this, ofs, s->object->get_mtime(), etag, s->object->get_instance());
   if (ret < 0) {
     ldpp_dout(this, 1) << "ERROR: publishing notification failed, with error: " << ret << dendl;
     // too late to rollback operation, hence op_ret is not set here
   }
+
+  ldpp_dout(this, 0) << "RGWPostObj_execute: end of execute part" << dendl;
 }
 
 
