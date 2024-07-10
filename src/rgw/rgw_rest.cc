@@ -1411,17 +1411,25 @@ int RGWPostObj_ObjStore::verify_params()
 
 int RGWPostObj_ObjStore::get_params(optional_yield y)
 {
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: expect_cont" << dendl;
+
   if (s->expect_cont) {
     /* OK, here it really gets ugly. With POST, the params are embedded in the
      * request body, so we need to continue before being able to actually look
      * at them. This diverts from the usual request flow. */
     dump_continue(s);
+    ldpp_dout(this, 0) << "RGWPostObj_get_params: 1" << dendl;
     s->expect_cont = false;
+    ldpp_dout(this, 0) << "RGWPostObj_get_params: 2" << dendl;
   }
 
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: 3" << dendl;
   std::string req_content_type_str = s->info.env->get("CONTENT_TYPE", "");
   std::string req_content_type;
   std::map<std::string, std::string> params;
+  
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: 4" << dendl;
+
   parse_boundary_params(req_content_type_str, req_content_type, params);
 
   if (req_content_type.compare("multipart/form-data") != 0) {
@@ -1439,17 +1447,25 @@ int RGWPostObj_ObjStore::get_params(optional_yield y)
 			<< dendl;
     }
   }
+  
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: 5" << dendl;
 
   const auto iter = params.find("boundary");
+
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: 6" << dendl;
+
   if (std::end(params) == iter) {
     err_msg = "Missing multipart boundary specification";
     return -EINVAL;
   }
 
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: 7" << dendl;
+
   /* Create the boundary. */
   boundary = "--";
   boundary.append(iter->second);
 
+  ldpp_dout(this, 0) << "RGWPostObj_get_params: 8" << dendl; 
   return 0;
 }
 
