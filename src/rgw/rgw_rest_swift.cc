@@ -2149,8 +2149,15 @@ int RGWFormPost::get_params(optional_yield y)
           ldpp_dout(this, 20) << " " << param_pair.first
                             << " -> " << param_pair.second << dendl;
         }
+      
+      ldpp_dout(this, 0) << "RGWFormPost_get_params: first loop exit" << dendl;
+
       }
     }
+
+    ldpp_dout(this, 0) << "RGWFormPost_get_params: if exit" << dendl;
+
+    
 
     if (stream_done) {
       /* Unexpected here. */
@@ -2158,11 +2165,15 @@ int RGWFormPost::get_params(optional_yield y)
       return -EINVAL;
     }
 
+    ldpp_dout(this, 0) << "RGWFormPost_get_params: stream not done, first data part ahead" << dendl;
+
     const auto field_iter = part.fields.find("Content-Disposition");
     if (std::end(part.fields) != field_iter &&
         std::end(field_iter->second.params) != field_iter->second.params.find("filename")) {
       /* First data part ahead. */
       current_data_part = std::move(part);
+      
+      ldpp_dout(this, 0) << "RGWFormPost_get_params: stop the itaration" << dendl;
 
       /* Stop the iteration. We can assume that all control parts have been
        * already parsed. The rest of HTTP body should contain data parts
@@ -2170,6 +2181,9 @@ int RGWFormPost::get_params(optional_yield y)
       break;
     } else {
       /* Control part ahead. Receive, parse and driver for later usage. */
+
+      ldpp_dout(this, 0) << "RGWFormPost_get_params: control part ahead" << dendl;
+
       bool boundary;
       ret = read_data(part.data, s->cct->_conf->rgw_max_chunk_size,
                       boundary, stream_done);
@@ -2181,6 +2195,8 @@ int RGWFormPost::get_params(optional_yield y)
       }
 
       ctrl_parts[part.name] = std::move(part);
+
+      ldpp_dout(this, 0) << "RGWFormPost_get_params: control parts and finish" << dendl;
     }
   } while (! stream_done);
 
@@ -2201,6 +2217,8 @@ int RGWFormPost::get_params(optional_yield y)
     err_msg = "FormPost: Invalid Signature";
     return -EPERM;
   }
+
+  ldpp_dout(this, 0) << "RGWFormPost_get_params: all done, finish" << dendl;
 
   return 0;
 }
