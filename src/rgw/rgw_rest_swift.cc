@@ -2122,7 +2122,12 @@ void RGWFormPost::get_owner_info(const req_state* const s,
   /* Need to get user info of bucket owner. */
   std::unique_ptr<rgw::sal::Bucket> bucket;
   /* int ret = driver->get_bucket(s, user.get(), user->get_tenant(), bucket_name, &bucket, s->yield); */
-  int ret = driver->load_bucket(s, rgw_bucket(bucket_tenant, bucket_name), &bucket, s->yield);
+  /* int ret = driver->load_bucket(s, rgw_bucket(bucket_tenant, bucket_name), &bucket, s->yield); */
+
+  int ret = driver->load_bucket(s, user.get(),
+                                rgw_bucket(bucket_tenant, bucket_name),
+                                &bucket, s->yield);
+
   if (ret < 0) {
     throw ret;
   }
