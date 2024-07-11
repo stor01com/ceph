@@ -1949,9 +1949,9 @@ void RGWInfo_ObjStore_SWIFT::list_slo_data(Formatter& formatter,
 bool RGWInfo_ObjStore_SWIFT::is_expired(const std::string& expires, const DoutPrefixProvider *dpp)
 {
   string err;
-  ldpp_dout(this, 0) << "RGWFormPost_is_expired: ceph clock now" << dendl;
+  ldpp_dout(dpp, 0) << "RGWFormPost_is_expired: ceph clock now" << dendl;
   const utime_t now = ceph_clock_now();
-  ldpp_dout(this, 0) << "RGWFormPost_is_expired: expiration" << dendl;
+  ldpp_dout(dpp, 0) << "RGWFormPost_is_expired: expiration" << dendl;
   const uint64_t expiration = (uint64_t)strict_strtoll(expires.c_str(),
                                                        10, &err);
 
@@ -1960,7 +1960,7 @@ bool RGWInfo_ObjStore_SWIFT::is_expired(const std::string& expires, const DoutPr
     ldpp_dout(dpp, 5) << "failed to parse siginfo_expires: " << err << dendl;
     return true;
   }
-ldpp_dout(this, 0) << "RGWFormPost_is_expired: if expiration" << dendl;
+ldpp_dout(dpp, 0) << "RGWFormPost_is_expired: if expiration" << dendl;
   if (expiration <= (uint64_t)now.sec()) {
     ldpp_dout(dpp, 5) << "siginfo expired: " << expiration << " <= " << now.sec() << dendl;
     return true;
