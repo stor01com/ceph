@@ -2028,7 +2028,7 @@ bool RGWFormPost::is_integral()
   ldpp_dout(this, 5) << "RGWFormPost__: get part str signature" << dendl;
   const std::string form_signature = get_part_str(ctrl_parts, "signature");
   ldpp_dout(this, 5) << "RGWFormPost__: get part str signature end" << dendl;
-  ldpp_dout(this, 5) << "RGWFormPost__: get part str signature end - " << form_signature << dendl;
+  
 
   try {
     get_owner_info(s, s->user->get_info());
@@ -2117,7 +2117,8 @@ void RGWFormPost::get_owner_info(const req_state* const s,
       }
     }
   }
-
+  
+  ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: get bucket" << dendl;
   /* Need to get user info of bucket owner. */
   std::unique_ptr<rgw::sal::Bucket> bucket;
   int ret = driver->get_bucket(s, user.get(), user->get_tenant(), bucket_name, &bucket, s->yield);
