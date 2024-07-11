@@ -2024,7 +2024,11 @@ bool RGWFormPost::is_non_expired()
 
 bool RGWFormPost::is_integral()
 {
+
+  ldpp_dout(this, 5) << "RGWFormPost__: get part str signature" << dendl;
   const std::string form_signature = get_part_str(ctrl_parts, "signature");
+  ldpp_dout(this, 5) << "RGWFormPost__: get part str signature end" << dendl;
+  ldpp_dout(this, 5) << "RGWFormPost__: get part str signature end - " << form_signature << dendl;
 
   try {
     get_owner_info(s, s->user->get_info());
@@ -2042,6 +2046,7 @@ bool RGWFormPost::is_integral()
       continue;
     }
 
+ldpp_dout(this, 5) << "RGWFormPost__: Signature helper" << dendl;
     SignatureHelper sig_helper;
     sig_helper.calc(temp_url_key,
                     s->info.request_uri,
@@ -2071,8 +2076,10 @@ void RGWFormPost::get_owner_info(const req_state* const s,
 {
   /* We cannot use req_state::bucket_name because it isn't available
    * now. It will be initialized in RGWHandler_REST_SWIFT::postauth_init(). */
+  ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: bucket_name" << dendl;
   const string& bucket_name = s->init_state.url_bucket;
 
+  ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: sal user" << dendl;
   std::unique_ptr<rgw::sal::User> user;
 
   /* TempURL in Formpost only requires that bucket name is specified. */
@@ -2081,16 +2088,24 @@ void RGWFormPost::get_owner_info(const req_state* const s,
   }
 
   if (!s->account_name.empty()) {
+
+    ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: account name not empty" << dendl;
+
     RGWUserInfo uinfo;
     bool found = false;
 
     const rgw_user uid(s->account_name);
+
+    ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: bucket_name" << dendl;
+
     if (uid.tenant.empty()) {
       const rgw_user tenanted_uid(uid.id, uid.id);
+      ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: tenant id" << dendl;
       user = driver->get_user(tenanted_uid);
 
       if (user->load_user(s, s->yield) >= 0) {
         /* Succeeded. */
+        ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: succeeded" << dendl;
         found = true;
       }
     }
