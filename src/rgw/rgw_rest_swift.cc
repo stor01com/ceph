@@ -2081,6 +2081,7 @@ void RGWFormPost::get_owner_info(const req_state* const s,
 
   ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: sal user" << dendl;
   std::unique_ptr<rgw::sal::User> user;
+  std::string bucket_tenant;
 
   /* TempURL in Formpost only requires that bucket name is specified. */
   if (bucket_name.empty()) {
@@ -2116,17 +2117,20 @@ void RGWFormPost::get_owner_info(const req_state* const s,
 	throw -EPERM;
       }
     }
+
+    bucket_tenant = user->get_tenant();
   }
   
   ldpp_dout(this, 20) << "RGWFormPost_get_owner_info: get bucket" << dendl;
   /* Need to get user info of bucket owner. */
   std::unique_ptr<rgw::sal::Bucket> bucket;
   /* int ret = driver->get_bucket(s, user.get(), user->get_tenant(), bucket_name, &bucket, s->yield); */
+  int ret = driver->get_bucket(s, user.get(), bucket_tenant, bucket_name, &bucket, s->yield);
   /* int ret = driver->load_bucket(s, rgw_bucket(bucket_tenant, bucket_name), &bucket, s->yield); */
 
-  int ret = driver->load_bucket(s, user.get(),
+  /* int ret = driver->load_bucket(s, user.get(),
                                 rgw_bucket(bucket_tenant, bucket_name),
-                                &bucket, s->yield);
+                                &bucket, s->yield); */
 
   if (ret < 0) {
     throw ret;
